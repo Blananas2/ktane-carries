@@ -1,6 +1,9 @@
+using NUnit.Framework;
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using UnityEngine;
 using Rnd = UnityEngine.Random;
 
@@ -28,11 +31,14 @@ public class carriesScript : MonoBehaviour
 
     private int moduleId;
     private static int moduleIdCounter = 1;
+    private int carriesId;
+    private static int carriesIdCounter = 1;
     private bool moduleSolved;
 
     private void Start()
     {
         moduleId = moduleIdCounter++;
+        carriesId = carriesIdCounter++;
         foreach (KMSelectable button in ButtonSels)
         {
             button.OnInteract += delegate ()
@@ -49,7 +55,7 @@ public class carriesScript : MonoBehaviour
 
         Module.OnActivate += Activate;
 
-    retry:
+        retry:
         int a = Rnd.Range(0, 100000);
         int b = Rnd.Range(0, 100000);
         int c = Rnd.Range(0, 100000);
@@ -104,9 +110,15 @@ public class carriesScript : MonoBehaviour
         correctBin = Convert.ToString(correctNum, 2);
     }
 
+    private void OnDestroy()
+    {
+        carriesIdCounter = 1;
+    }
+
     private void Activate()
     {
-        Audio.PlaySoundAtTransform("Startup", transform);
+        if (carriesId == 1)
+            Audio.PlaySoundAtTransform("Startup", transform);
         StartCoroutine(StartupAnimation());
     }
 
@@ -158,8 +170,10 @@ public class carriesScript : MonoBehaviour
                             InputText.text = chosenWord;
                             for (int x = 0; x < 3; x++)
                                 LetterTexts[x].text = null;
-                            Module.HandlePass();
+                            Audio.PlaySoundAtTransform("Solve", transform);
                             Debug.LogFormat("[Carries #{0}] Correct word submitted, module solved.", moduleId);
+                            moduleSolved = true;
+                            Module.HandlePass();
                         }
                         else
                         {
@@ -200,16 +214,47 @@ public class carriesScript : MonoBehaviour
     }
 
 #pragma warning disable 0414
-    private readonly string TwitchHelpMessage = "!{0} command";
+    private readonly string TwitchHelpMessage = "!{0} press 1 2 3 [Press buttons 1/2/3 from top to bottom.]";
 #pragma warning restore 0414
 
     private IEnumerator ProcessTwitchCommand(string command)
     {
-        yield break;
+        var m = Regex.Match(command, @"^\s*(?:press\s+)?(?<nums>[123,; tmb]+)\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        if (m.Success)
+        {
+            string numInput = m.Groups["nums"].Value;
+            var list = new List<int>();
+            foreach (var num in numInput)
+            {
+                int ix = "123,; tmb".IndexOf(num);
+                if (ix == -1)
+                    yield break;
+                ix %= 6;
+                if (ix > 2)
+                    continue;
+                list.Add(ix);
+            }
+            yield return null;
+            foreach (var item in list)
+            {
+                ButtonSels[item].OnInteract();
+                yield return new WaitForSeconds(0.2f);
+            }
+            yield break;
+        }
     }
 
     private IEnumerator TwitchHandleForcedSolve()
     {
+        while (!moduleSolved)
+        {
+            int btnToPress = -1;
+            for (int i = 0; i < 3; i++)
+                if ((i == 0 && currentNum == correctNum) || correctBin.StartsWith(Convert.ToString(currentNum * 2 + (i == 1 ? 0 : 1), 2)))
+                    btnToPress = i;
+            ButtonSels[btnToPress].OnInteract();
+            yield return new WaitForSeconds(0.2f);
+        }
         yield break;
     }
 }
