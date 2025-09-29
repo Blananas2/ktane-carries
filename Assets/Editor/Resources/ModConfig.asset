@@ -28,4 +28,4 @@ MonoBehaviour:
     The manual can be found here: https://ktane.timwi.de/HTML/Carries.html'
   version: 
   outputFolder: build
-  previewImage: {fileID: 0}
+  previewImage: {fileID: 2800000, guid: 7178d42e0fbbafe459bf259dd596ab12, type: 3}
